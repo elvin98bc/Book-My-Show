@@ -5,14 +5,15 @@ pipeline {
 
     tools {
         jdk 'jdk17'
-        nodejs 'node23'
+        nodejs 'nodejs24'
     }
 
     environment {
         SCANNER_HOME = tool 'sonar-scanner'
-        DOCKER_IMAGE = 'kastrov/bms:latest'
-        EKS_CLUSTER_NAME = 'kastro-eks'
-        AWS_REGION = 'us-east-1'
+        DOCKER_IMAGE = 'elvin98bc/bms:latest'
+        EKS_CLUSTER_NAME = 'elvin-eks'
+        AWS_REGION = 'ap-southeast-1'
+        EMAIL = 'elvin98bc@gmail.com'
     }
 
     stages {
@@ -24,7 +25,7 @@ pipeline {
 
         stage('Checkout from Git') {
             steps {
-                git branch: 'main', url: 'https://github.com/KastroVKiran/Book-My-Show.git'
+                git branch: 'main', url: 'https://github.com/elvin98bc/Book-My-Show.git'
                 sh 'ls -la'  // Verify files after checkout
             }
         }
@@ -65,10 +66,23 @@ pipeline {
             }
         }
 
+        // stage('OWASP FS Scan') {
+        //     steps {
+        //         dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit', odcInstallation: 'DP-Check'
+        //         dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+        //     }
+        // }
+
         stage('OWASP FS Scan') {
             steps {
-                dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit', odcInstallation: 'DP-Check'
-                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+                withCredentials([string(credentialsId: 'nvd-api', variable: 'NVD_API_KEY')]) {
+                    dependencyCheck additionalArguments: """--scan ./ \
+                        --nvdApiKey=$NVD_API_KEY \
+                        --disableYarnAudit \
+                        --disableNodeAudit""",
+                        odcInstallation: 'DP-Check'
+                    dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+                }
             }
         }
 
@@ -127,7 +141,7 @@ pipeline {
                 body: "Project: ${env.JOB_NAME}<br/>" +
                       "Build Number: ${env.BUILD_NUMBER}<br/>" +
                       "URL: ${env.BUILD_URL}<br/>",
-                to: 'kastrokiran@gmail.com',
+                to: '${env.EMAIL}',
                 attachmentsPattern: 'trivyfs.txt'
         }
     }

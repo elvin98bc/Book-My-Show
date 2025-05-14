@@ -52,10 +52,22 @@ pipeline {
                 '''
             }
         }
+        // stage('OWASP FS Scan') {
+        //     steps {
+        //         dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit', odcInstallation: 'DP-Check'
+        //         dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+        //     }
+        // }
         stage('OWASP FS Scan') {
             steps {
-                dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit', odcInstallation: 'DP-Check'
-                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+                withCredentials([string(credentialsId: 'nvd-api', variable: 'NVD_API_KEY')]) {
+                    dependencyCheck additionalArguments: """--scan ./ \
+                        --nvdApiKey=$NVD_API_KEY \
+                        --disableYarnAudit \
+                        --disableNodeAudit""",
+                        odcInstallation: 'DP-Check'
+                    dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+                }
             }
         }
         stage('Trivy FS Scan') {
